@@ -1,8 +1,8 @@
-# Airflow + Microsoft Fabric Orchestration Demo
+# Airflow + Microsoft Fabric IoT Data Pipeline
 
-Production-style data engineering demo for orchestrating machine API ingestion, Microsoft Fabric Lakehouse transformation, curated Delta tables, and a semantic model ready for dashboarding.
+Production-style data engineering demo for orchestrating IoT-style machine events, telemetry, and logs into Microsoft Fabric Lakehouse tables and a semantic model ready for analytics.
 
-The scenario is an industrial high-speed QR printing line for beverage bottle/can traceability. Each item receives a unique QR code, vision inspection validates print quality, and machine telemetry/logs support operational analytics.
+The scenario is an industrial high-speed QR printing line for beverage bottle/can traceability. Each item receives a unique QR code, vision inspection validates print quality, telemetry tracks machine health, and logs capture operational faults.
 
 ![Airflow DAG overview](docs/screenshots/airflow-dag-overview.png)
 
@@ -10,14 +10,15 @@ The scenario is an industrial high-speed QR printing line for beverage bottle/ca
 
 - Apache Airflow as the orchestration layer for a daily data pipeline
 - Dockerized services running on an Ubuntu VPS
-- API extraction from a simulated industrial machine source
+- API extraction from a simulated industrial IoT machine source
+- Handling multiple machine-data grains: item events, minute telemetry, and fault logs
 - Raw JSON landing in Microsoft Fabric OneLake / Lakehouse Files
 - Fabric notebook transformation into curated Delta tables
 - SQL analytics endpoint validation
 - Semantic model refresh after data transformation
 - Fabric F2 pause/resume automation for cost control
 
-The project intentionally stops at a refreshed semantic model. A dashboard can be connected later, but the focus here is the governed pipeline that prepares reliable analytical data.
+The project intentionally stops at a refreshed semantic model. The focus is the governed pipeline that prepares reliable machine data for analytics, operations monitoring, and future reporting.
 
 ## Business Scenario
 
@@ -27,7 +28,7 @@ A beverage production line prints QR codes at high speed for traceability. The s
 - `machine_telemetry`: one row per minute with speed, temperature, vibration, pressure, ink usage, and machine state
 - `machine_logs`: fault and warning events such as reject gate jams, dirty vision lens, encoder signal loss, and printhead temperature alerts
 
-The goal is to convert raw operational events into curated facts, dimensions, and semantic measures that can support production, quality, downtime, and machine-health analysis.
+The goal is to convert raw IoT-style operational data into curated facts, dimensions, and semantic measures that support production, quality, downtime, fault, and machine-health analysis.
 
 ## Architecture
 
@@ -40,7 +41,7 @@ flowchart TD
     E --> F["Fabric Notebook Transform<br/>PySpark"]
     F --> G["Lakehouse Delta Tables<br/>Facts + Dimensions"]
     G --> H["SQL Analytics Endpoint<br/>Validation"]
-    H --> I["Semantic Model<br/>Ready for dashboarding"]
+    H --> I["Semantic Model<br/>Ready for analytics"]
     I --> J["Pause Fabric F2 Capacity"]
 
     classDef orchestrator fill:#1f4e79,stroke:#16344f,color:#fff;
@@ -91,7 +92,7 @@ The DAG runs daily at `00:00 UTC / 07:00 Bangkok`, processes the previous 24-hou
 | Transform | Parse, clean, type, and model records | Fabric notebook / PySpark |
 | Curated | Analytics-ready facts and dimensions | Fabric Lakehouse Delta tables |
 | Validation | Confirm row availability and table readiness | Fabric SQL analytics endpoint |
-| Semantic | Business measures and relationships | Semantic model ready for reports |
+| Semantic | Business measures and relationships | Semantic model ready for downstream analytics |
 
 Curated tables include:
 
@@ -191,4 +192,4 @@ docker-compose.yaml                       Local/VPS Airflow stack
 
 ## Current Status
 
-The pipeline has been tested end-to-end from Airflow on the VPS through Fabric transformation and semantic model refresh. The current focus is orchestration and data platform readiness; dashboard design is intentionally left as a later layer.
+The pipeline has been tested end-to-end from Airflow on the VPS through Fabric transformation and semantic model refresh. The current focus is orchestration and data platform readiness for IoT-style machine data.
