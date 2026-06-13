@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.local
+.env.*
+!.env.example
+logs/*
+data/raw/*
+data/curated/*
+data/fabric_simulation/*
+!logs/.gitkeep
+!data/raw/.gitkeep
+!data/curated/.gitkeep
+__pycache__/
+*.pyc
+*.pem
+*.key
