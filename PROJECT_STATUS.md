@@ -9,7 +9,8 @@ Read these in order:
 1. [README.md](README.md): GitHub-facing project pitch and showcase overview.
 2. [PROJECT_DETAILS.md](PROJECT_DETAILS.md): full project concept, architecture, domain, and operating model.
 3. [PROJECT_STATUS.md](PROJECT_STATUS.md): current implementation status, completed work, caveats, and next steps.
-4. [FABRIC_CLEANUP_INVENTORY.md](FABRIC_CLEANUP_INVENTORY.md): Fabric workspace and capacity inventory.
+4. [ALERTING_MONITORING.md](ALERTING_MONITORING.md): daily pipeline email-alerting design.
+5. [FABRIC_CLEANUP_INVENTORY.md](FABRIC_CLEANUP_INVENTORY.md): Fabric workspace and capacity inventory.
 
 ## Current Goal
 
@@ -466,7 +467,7 @@ Budget name: budget-fabric-demo-20usd
 Scope:       Azure subscription 1
 Amount:      $20/month
 Alerts:      50%, 80%, 100%
-Recipient:   <budget-alert-email>
+Recipient:   Pattaratua@gmail.com
 ```
 
 Important:
@@ -475,6 +476,8 @@ Important:
 Budget alerts are notifications only.
 They are not a hard spending stop.
 ```
+
+Budget alert recipient was updated to `Pattaratua@gmail.com` for this Fabric budget and the related Databricks project budgets.
 
 ### 9. End-to-End Automation Test
 

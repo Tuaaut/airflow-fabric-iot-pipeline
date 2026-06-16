@@ -7,7 +7,8 @@ Read these in order:
 1. [README.md](README.md): GitHub-facing project pitch and showcase overview.
 2. [PROJECT_DETAILS.md](PROJECT_DETAILS.md): full project concept, architecture, domain, and phases.
 3. [PROJECT_STATUS.md](PROJECT_STATUS.md): current implementation status, completed work, caveats, restart notes, and next steps.
-4. [FABRIC_CLEANUP_INVENTORY.md](FABRIC_CLEANUP_INVENTORY.md): Fabric workspace, item, capacity, and cleanup inventory.
+4. [ALERTING_MONITORING.md](ALERTING_MONITORING.md): daily pipeline email-alerting design.
+5. [FABRIC_CLEANUP_INVENTORY.md](FABRIC_CLEANUP_INVENTORY.md): Fabric workspace, item, capacity, and cleanup inventory.
 
 Internal instruction file:
 
@@ -124,6 +125,7 @@ Region: Southeast Asia
 Idle state: Paused
 Azure budget: budget-fabric-demo-20usd
 Budget alerts: 50%, 80%, 100%
+Budget alert recipient: Pattaratua@gmail.com
 Month-to-date Azure cost checked on 2026-06-13: about $0.738 USD
 ```
 

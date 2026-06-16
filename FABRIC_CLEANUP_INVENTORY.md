@@ -61,10 +61,12 @@ Budget name: budget-fabric-demo-20usd
 Scope:       subscription
 Amount:      $20/month
 Alerts:      50%, 80%, 100%
-Recipient:   <budget-alert-email>
+Recipient:   Pattaratua@gmail.com
 ```
 
 Budget alerts are notifications only. They are not a hard spending stop.
+
+Alert recipient was updated to `Pattaratua@gmail.com` together with the Databricks project budget alerts.
 
 Latest cost snapshot on 2026-06-13:
 

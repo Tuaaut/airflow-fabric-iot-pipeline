@@ -147,6 +147,8 @@ sequenceDiagram
 
 This keeps the demo suitable for learning and portfolio use without leaving Fabric compute running continuously.
 
+Azure budget alerts for this Fabric demo are sent to `Pattaratua@gmail.com`.
+
 ## Tech Stack
 
 - Apache Airflow
@@ -188,6 +190,7 @@ docker-compose.yaml                       Local/VPS Airflow stack
 
 - [PROJECT_DETAILS.md](PROJECT_DETAILS.md): full concept, architecture notes, domain design, and phase plan
 - [PROJECT_STATUS.md](PROJECT_STATUS.md): current implementation state, fixes, caveats, costs, and next steps
+- [ALERTING_MONITORING.md](ALERTING_MONITORING.md): missing email-alerting design for daily pipeline status
 - [FABRIC_CLEANUP_INVENTORY.md](FABRIC_CLEANUP_INVENTORY.md): Fabric workspace, capacity, budget, and cleanup inventory
 
 ## Current Status
