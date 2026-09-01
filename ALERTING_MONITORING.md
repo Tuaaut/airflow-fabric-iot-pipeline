@@ -15,7 +15,7 @@ Azure budget alerts already cover spend notifications. This alerting design cove
 
 ## Current Status
 
-Implemented:
+Implemented pipeline pieces:
 
 ```text
 Airflow DAG: qr_printing_machine_api_ingestion
@@ -34,10 +34,24 @@ Missing piece:
 Automatic readable email alert after each run
 ```
 
+Current notification status:
+
+```text
+Budget/spend alerts: documented recipient is Pattaratua@gmail.com
+Daily DAG completion email: designed, not implemented yet
+Required next step: create Logic Apps HTTP trigger and add Airflow POST task
+```
+
 Fabric CLI has been installed locally:
 
 ```bash
 fab --version
+```
+
+Verified local version:
+
+```text
+fab version 0.1.10
 ```
 
 Authentication is still interactive:
@@ -248,4 +262,3 @@ curl http://localhost:8080/api/v2/monitor/health
 Implement the Airflow alert tasks after Logic Apps HTTP trigger URL is created.
 
 Do not store the Logic Apps URL in Git. Put it in `.env` only.
-

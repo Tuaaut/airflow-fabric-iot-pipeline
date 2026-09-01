@@ -4,6 +4,15 @@ Production-style data engineering demo for orchestrating IoT-style machine event
 
 The scenario is an industrial high-speed QR printing line for beverage bottle/can traceability. Each item receives a unique QR code, vision inspection validates print quality, telemetry tracks machine health, and logs capture operational faults.
 
+> **Status (2026-09-01):** running again on a **local Mac Docker Compose** stack
+> (the Contabo VPS was cancelled 2026-07-12). A full end-to-end run was verified
+> on 2026-09-01 - resume F2 -> machine API extract -> OneLake -> Fabric notebook
+> transform -> validate -> semantic model refresh -> pause F2 (~4.8 min, all
+> green). The main DAG is `@daily` 07:00 Bangkok and fires whenever the Mac is
+> awake with Docker running. Fabric F2 `fabf2sea01` is **Paused** between runs
+> ($0 compute). See `PROJECT_STATUS.md` for operating notes and always-on
+> runtime options.
+
 ![Airflow DAG overview](docs/screenshots/airflow-dag-overview.png)
 
 ## What This Demonstrates
@@ -149,6 +158,8 @@ This keeps the demo suitable for learning and portfolio use without leaving Fabr
 
 Azure budget alerts for this Fabric demo are sent to `Pattaratua@gmail.com`.
 
+Daily pipeline completion email is documented in `ALERTING_MONITORING.md`, but not implemented yet. The planned path is Airflow sending one run-summary payload to Azure Logic Apps, then Logic Apps sending the readable email.
+
 ## Tech Stack
 
 - Apache Airflow
@@ -195,4 +206,8 @@ docker-compose.yaml                       Local/VPS Airflow stack
 
 ## Current Status
 
-The pipeline has been tested end-to-end from Airflow on the VPS through Fabric transformation and semantic model refresh. The current focus is orchestration and data platform readiness for IoT-style machine data.
+The pipeline is validated end-to-end - Airflow through Fabric transformation and
+Power BI semantic model refresh - most recently on 2026-09-01 on a local Mac
+Docker Compose stack. Code and infra definitions are complete. The daily
+schedule is active while the Mac + Docker are running; see `PROJECT_STATUS.md`
+for always-on runtime options.

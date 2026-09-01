@@ -56,12 +56,17 @@ Local Mac Docker remains for development/testing only.
 
 ## Current Implementation Snapshot
 
-As of 2026-06-13, the working implementation has moved from local Mac Docker to a Contabo VPS:
+As of 2026-09-01, the scheduler runs on the **local Mac via Docker Compose**
+(this repo). The Contabo VPS that previously hosted it was cancelled on
+2026-07-12. A full end-to-end run was verified on 2026-09-01 (~4.8 min, all 9
+tasks green, F2 resumed then paused). The main DAG is unpaused and next fires
+2026-09-02 00:00 UTC / 07:00 Bangkok - it only runs when the Mac is awake and
+Docker Desktop is up.
+
+The pipeline design (unchanged, also redeployable on any Docker host):
 
 ```text
-Contabo Cloud VPS 10 NVMe / Ubuntu 24.04
-    ↓
-Docker Compose Airflow stack
+Docker Compose Airflow stack (on a runtime host - TBD)
     ↓
 Daily DAG at 00:00 UTC / 07:00 Bangkok
     ↓
@@ -78,34 +83,29 @@ Power BI semantic model refresh
 Airflow pauses Fabric F2 capacity
 ```
 
-Current VPS access:
+Runtime host access (HISTORICAL - Contabo VPS, cancelled 2026-07-12):
 
 ```text
-VPS IP: <vps-ip>
-SSH user: <ssh-user>
-Project path: /opt/airflow-warehouse-dashboard
-Airflow UI: http://<vps-ip>:8080
-Machine API health: http://<vps-ip>:8000/health
-Airflow login: <airflow-user> / <airflow-password>
+Project path (on the host): /opt/airflow-fabric-iot-pipeline
+Airflow UI: http://<host-ip>:8080
+Machine API health: http://<host-ip>:8000/health
 ```
 
 Important:
 
 ```text
-Do not store the VPS root password in this repo.
-Airflow currently uses plain HTTP by IP address, so Chrome shows "Not Secure".
-For a longer-running or shared demo, add a domain, HTTPS, and a stronger Airflow password.
-Local Mac Docker Airflow is stopped; the VPS is the scheduler.
+There is no scheduler running. To resume, deploy the Docker Compose stack to a
+new runtime host (see PROJECT_STATUS.md -> Runtime Options).
+When redeploying, use HTTPS + a strong Airflow admin password for any shared demo.
+The local Mac Docker copy is the source of truth for development and editing.
 ```
 
-Contabo billing state:
+Contabo billing state (closed):
 
 ```text
-Plan: Cloud VPS 10 NVMe
-Monthly price shown: EUR 5.50
-Next payment date: 2026-07-12
-Cancellation scheduled at: 2026-07-12
-Meaning: auto-renewal should be stopped at the end of the current paid period.
+Plan: Cloud VPS 10 NVMe / EUR 5.50 per month
+Paid period ended: 2026-07-12
+Status: CANCELLED - auto-renewal off, no further charges, server deprovisioned.
 ```
 
 Current data volume:
@@ -823,12 +823,12 @@ Hourly source endpoint:
 
 This repo uses the official Apache Airflow Docker Compose setup.
 
-Current state:
+Current state (2026-09-01):
 
 ```text
-Local Docker Compose Airflow is stopped.
-Use local Docker only for development/testing.
-The Contabo VPS runs the live daily scheduler.
+No scheduler is running. The Contabo VPS was cancelled on 2026-07-12.
+Local Docker Compose Airflow is stopped (use it for development/testing).
+Redeploy the same Docker Compose stack to a new runtime host to resume the schedule.
 ```
 
 Start Airflow:

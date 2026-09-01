@@ -1,6 +1,26 @@
 # Project Status: Airflow + Fabric + Power BI Demo
 
-Last updated: 2026-06-13 18:45 Bangkok
+Last updated: 2026-09-01 Bangkok
+
+## Status Note (2026-09-01)
+
+```text
+Contabo VPS subscription: CANCELLED (paid period ended 2026-07-12, server deprovisioned).
+Runtime NOW: local Mac Docker Compose stack (this repo), brought back up 2026-09-01.
+  8 containers, all "restart: always" -> auto-resume when Docker Desktop starts.
+  Airflow UI: http://localhost:8080  (login airflow / airflow)
+Schedule: both DAGs UNPAUSED. Main DAG @daily 00:00 UTC / 07:00 Bangkok.
+  Next run: 2026-09-02 00:00 UTC. Requires the Mac awake + Docker running at that time.
+Verified 2026-09-01: full end-to-end run success in ~4.8 min - resume F2 -> machine API
+  extract (~4,800 events) -> OneLake upload -> Fabric notebook transform -> validate curated
+  Delta tables -> Power BI semantic model refresh -> pause F2. F2 confirmed back to Paused.
+Fabric F2 capacity fabf2sea01: Paused ($0 compute) between runs; briefly Active (~5 min,
+  a few cents) during each run, then paused by the DAG.
+Local folder: renamed Airflow-warehouse-dashboard -> airflow-fabric-iot-pipeline to match the repo.
+Known issue: DAG has max_active_runs=16 (Airflow default). A manual trigger on top of the
+  scheduled run collides on F2 resume ("Service is not ready to be updated"). Recommend
+  setting max_active_runs=1 on the DAG since it mutates a shared F2 capacity.
+```
 
 ## Document Map
 
@@ -60,28 +80,80 @@ Same Airflow → Machine API → Fabric → Power BI pipeline
 ## Current Operating State
 
 ```text
-Airflow UI: http://<vps-ip>:8080
-Airflow login: <airflow-user> / <airflow-password>
-Machine API health: http://<vps-ip>:8000/health
-Main DAG: qr_printing_machine_api_ingestion
-DAG schedule: daily at 00:00 UTC / 07:00 Bangkok
-DAG state: unpaused
-Runtime host: Contabo Cloud VPS 10 NVMe
-VPS IP: <vps-ip>
-VPS SSH user: <ssh-user>
-Project path on VPS: /opt/airflow-warehouse-dashboard
-Fabric capacity: fabf2sea01, F2, Southeast Asia
-Fabric capacity state: Paused
+Runtime host: local Mac Docker Compose (this repo dir), running since 2026-09-01
+Airflow scheduler: running (docker compose stack, 8 containers, restart: always)
+Airflow UI: http://localhost:8080  (airflow / airflow)
+Main DAG: qr_printing_machine_api_ingestion - UNPAUSED, @daily 00:00 UTC / 07:00 Bangkok
+Secondary DAG: world_bank_indicators - UNPAUSED, @daily
+Last successful run: scheduled__2026-09-01T00:00:00 (all 9 tasks, ~4.8 min)
+Next run: 2026-09-02 00:00 UTC (needs Mac awake + Docker Desktop running)
+Fabric capacity: fabf2sea01, F2, Southeast Asia - Paused between runs, Active during a run
+Fabric workspace: airflow-fabric-demo-dev (Lakehouse lh_qr_printing_demo, 2 notebooks, semantic model)
 Daily data volume: about 4,800 print events/day
 ```
 
 Important:
 
 ```text
-The production-style demo scheduler now runs on the Contabo VPS.
-The Mac no longer needs to stay awake for the daily Airflow schedule.
-The local Mac copy remains useful for development and editing.
-The local Docker Compose Airflow stack is currently stopped.
+The Contabo VPS is gone (cancelled 2026-07-12). The scheduler now runs locally on
+the Mac via Docker Compose. The daily run only fires if the Mac is awake and
+Docker Desktop is running at 07:00 Bangkok; if the Mac is asleep the run is
+skipped (catchup=False, no backfill).
+Set Docker Desktop to "Start when you sign in"; the containers use restart: always
+so the stack comes back automatically after a reboot.
+For an unattended always-on runtime, see "Runtime Options" below.
+```
+
+## Latest Local Documentation Updates
+
+Added on 2026-06-17:
+
+```text
+Fabric CLI installed locally: fab version 0.1.10
+Alerting doc added: ALERTING_MONITORING.md
+Logic Apps alert placeholders added to .env.example
+Budget alert recipient documented as Pattaratua@gmail.com
+Learning/quiz files created locally only, not pushed to GitHub
+```
+
+What is done:
+
+```text
+Azure budget alert recipient is documented as Pattaratua@gmail.com.
+Daily pipeline completion email design is documented.
+Recommended notification path is Airflow → Logic Apps → email.
+```
+
+What is not done yet:
+
+```text
+Airflow does not yet send an automatic email after the scheduled daily run.
+Logic Apps workflow has not yet been created/authenticated.
+Airflow DAG has not yet been modified with send_pipeline_alert_to_logic_app.
+Fabric CLI is installed but not logged in; run fab auth login when needed.
+```
+
+## Local-Only Learning Files
+
+The Airflow/Fabric quiz and learning helper files are intentionally kept local and are not uploaded to GitHub.
+
+Local-only files:
+
+```text
+LEARNING_AND_QUIZ.md
+airflow_fabric_quiz.html
+```
+
+Reason:
+
+```text
+These files are personal learning aids for guided practice. The public GitHub repo should stay focused on the project showcase, architecture, implementation status, screenshots, and reusable documentation.
+```
+
+Git handling:
+
+```text
+The files still exist on the local Mac, but they are excluded through .git/info/exclude so they are not tracked or pushed.
 ```
 
 ## Files
@@ -165,7 +237,7 @@ Completed on 2026-06-13:
 * Opened firewall ports for SSH, Airflow, and the Machine API.
 * Cancelled Contabo auto-renewal at the end of the paid period.
 
-VPS details:
+VPS details (HISTORICAL - server cancelled and deprovisioned 2026-07-12):
 
 ```text
 Provider: Contabo
@@ -175,11 +247,10 @@ Location: Hub Europe
 OS: Ubuntu 24.04
 IPv4: <vps-ip>
 SSH user: <ssh-user>
-Project path: /opt/airflow-warehouse-dashboard
+Project path: /opt/airflow-fabric-iot-pipeline
 Monthly price shown: EUR 5.50
-Next payment date: 2026-07-12
-Cancellation date: 2026-07-12
-Auto-renewal status: cancellation scheduled for end of current paid period
+Paid period ended: 2026-07-12
+Status: CANCELLED - auto-renewal off, server no longer exists
 ```
 
 Do not store the VPS root password in this repo.
@@ -666,68 +737,75 @@ Stronger Airflow admin password
 Possibly IP allowlisting or VPN
 ```
 
+## Runtime Options (to resume the schedule)
+
+The stack is the official Apache Airflow 3 CeleryExecutor Docker Compose
+(~7 containers: postgres, redis, apiserver, scheduler, dag-processor, worker,
+triggerer + the machine-api container). It wants ~2 vCPU / 4 GB and runs 24/7,
+but the DAG only does a few minutes of real work per run.
+
+Cheaper than the old Contabo VPS (EUR 5.50 / ~USD 12 per month):
+
+| Option | Specs | Cost | Notes |
+|---|---|---|---|
+| **Oracle Cloud Always Free** (Ampere A1, ARM) | up to 4 OCPU / 24 GB | **USD 0 / month, forever** | Best value. ARM images work (same as the Mac). Free-tier ARM capacity can be scarce in busy regions; a 24/7 stack is not "idle" so it will not be reclaimed. |
+| **Netcup** VPS ARM G11 | 4 vCPU / 8 GB / 256 GB | ~EUR 3.25 / month | Cheapest reliable paid, always-on. |
+| **Hetzner Cloud** CX22 | 2 vCPU / 4 GB / 40 GB | ~EUR 3.79 / month | Note: Hetzner previously required extra ID verification. |
+| **Azure VM B1s, auto-stopped** | 1 vCPU / 1 GB (too small alone) or B2s 2 vCPU / 4 GB | ~USD 0.10 / month run cost + ~USD 1.5 / month for the managed disk when deallocated | Only viable with a start/stop automation around each run; adds moving parts. |
+| **GitHub Actions** (scheduled workflow) | ephemeral CI runner | **USD 0** (public repo) | No server. The workflow does `docker compose up`, triggers the DAG, waits, tears down. Changes the story from "Airflow on a server" to "Airflow in CI". |
+
+Recommendation: **Oracle Cloud Always Free ARM VM** - keeps a real always-on
+Airflow instance for the portfolio story at zero cost. If the free ARM instance
+is unavailable, **Netcup ARM (~EUR 3.25)**. If a server is not wanted at all,
+the **GitHub Actions** ephemeral approach is zero-cost and zero-maintenance.
+
+Deploy is identical on any of them: install Docker + the compose plugin,
+`git clone` into `/opt/airflow-fabric-iot-pipeline`, `cp .env.example .env` and
+fill it in, `docker compose up airflow-init` then `docker compose up -d`.
+
 ## Useful Commands
 
-Start local stack:
+The stack is plain Docker Compose, so the same commands work on the local Mac or
+on any new runtime host (see "Runtime Options"). There is no VPS anymore.
+
+Start the stack:
 
 ```bash
 docker compose up -d
 ```
 
-SSH to VPS:
-
-```bash
-ssh <ssh-user>@<vps-ip>
-```
-
-Go to project on VPS:
-
-```bash
-cd /opt/airflow-warehouse-dashboard
-```
-
-Start VPS stack:
-
-```bash
-docker compose up -d
-```
-
-Check VPS containers:
+Check containers:
 
 ```bash
 docker compose ps
 ```
 
-Check VPS Airflow health:
+Check Airflow health:
 
 ```bash
 curl http://localhost:8080/api/v2/monitor/health
 ```
 
-Check VPS Machine API:
+Check Machine API health:
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Check local containers:
+Open Airflow UI:
+
+```text
+http://localhost:8080   (or http://<host-ip>:8080 on a remote runtime)
+```
+
+To deploy to a new runtime host (generic):
 
 ```bash
-docker compose ps
-```
-
-Open Airflow:
-
-```text
-Local: http://localhost:8080
-VPS:   http://<vps-ip>:8080
-```
-
-Check Machine API:
-
-```text
-Local: curl http://localhost:8000/health
-VPS:   curl http://<vps-ip>:8000/health
+# on the host, after installing docker + docker compose plugin:
+git clone https://github.com/Tuaaut/airflow-fabric-iot-pipeline.git /opt/airflow-fabric-iot-pipeline
+cd /opt/airflow-fabric-iot-pipeline
+cp .env.example .env      # then fill in the real values
+docker compose up -d
 ```
 
 Test one hourly API window:
