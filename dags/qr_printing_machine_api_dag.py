@@ -247,6 +247,10 @@ def wait_for_capacity_state(target_state: str) -> dict:
     start_date=datetime(2026, 1, 1),
     schedule="@daily",
     catchup=False,
+    # The DAG resumes and pauses a single shared Fabric F2 capacity, so only one
+    # run may be in flight. Overlapping runs collide on resume with
+    # "Service is not ready to be updated" (Fabric BadRequest subCode 7).
+    max_active_runs=1,
     tags=["iot", "api", "qr-printing", "machine"],
 )
 def qr_printing_machine_api_ingestion():
