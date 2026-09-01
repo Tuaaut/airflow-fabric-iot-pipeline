@@ -45,12 +45,12 @@ The project demonstrates:
 * Fabric Delta tables and SQL endpoint validation
 * Power BI semantic model refresh
 * Paid Fabric F2 pause/resume cost control
-* Migration from local Mac Docker to a low-cost Ubuntu VPS
+* Portable Docker Compose runtime (local Mac now; any low-cost Linux host optional)
 
 ## Current Architecture
 
 ```text
-Contabo Ubuntu VPS Docker Compose
+Docker host (local Mac; any Linux host) - Docker Compose
     ↓
 Apache Airflow
     ↓
@@ -214,7 +214,7 @@ Completed:
 * Main DAG is visible in Airflow UI.
 * DAG has been changed from hourly to daily.
 * DAG is unpaused for daily automation.
-* Local stack was stopped on 2026-06-13 with `docker compose down` because the VPS is now the scheduler.
+* Local stack was stopped on 2026-06-13 when the scheduler moved to the Contabo VPS; it was brought back up locally on 2026-09-01 after the VPS was cancelled.
 
 Current schedule:
 
@@ -636,16 +636,16 @@ Logs:         variable
 
 ## Current Safety State
 
-Verified on 2026-06-13:
+Verified on 2026-09-01 (local Mac Docker Compose; supersedes the 2026-06-13 VPS check):
 
 ```text
-Runtime host: Contabo VPS
-Airflow containers: running / healthy after startup
+Runtime host: local Mac Docker Compose (8 containers, restart: always)
+Airflow containers: running / healthy
 Machine API: healthy
-DAG: unpaused
-Public Airflow URL: http://<vps-ip>:8080
-Public Machine API health URL: http://<vps-ip>:8000/health
-F2 capacity: Paused
+DAGs: unpaused (qr_printing_machine_api_ingestion, world_bank_indicators)
+Airflow URL: http://localhost:8080  (airflow / airflow)
+Last run: scheduled__2026-09-01T00:00:00 - success, all 9 tasks, ~4.8 min
+F2 capacity: Paused (Active only during a run, then paused by the DAG)
 ```
 
 Azure cost check on 2026-06-13:
@@ -675,29 +675,17 @@ That means the Mac should not idle-sleep while plugged in. No `pmset` scheduled 
 
 ## Important Caveats
 
-### Local Mac Is No Longer the Scheduler
+### The Mac Is the Scheduler Again
 
-This was true before the VPS migration.
-
-Current state:
-
-```text
-Airflow now runs on the Contabo VPS.
-The Mac does not need to remain awake for scheduled runs.
-```
-
-Residual caveat:
+Between 2026-06-13 and 2026-07-12 the scheduler ran on the Contabo VPS. The VPS
+was cancelled, and since 2026-09-01 the scheduler runs on this Mac via Docker
+Compose.
 
 ```text
-If new code is changed locally, it must be synced/deployed to the VPS before it affects the running Airflow instance.
-```
-
-Current unsynced change:
-
-```text
-The local DAG now writes future raw uploads to uploaded_at=<UTC_RUN_TIME>/start_hour=<DATA_WINDOW>/...
-This local DAG change must be deployed to the VPS before the scheduled VPS run uses the new upload layout.
-The cloud Fabric notebook has already been updated.
+The Mac must be awake, plugged in, and online at 07:00 Bangkok for the daily run.
+If the Mac sleeps at that time the run is skipped (catchup=False, no backfill).
+Docker Desktop must be running; containers use restart: always so they resume after a reboot.
+Editing a DAG file here takes effect on the next parse - no deploy step (the stack mounts ./dags).
 ```
 
 ### F2 Is Billable While Active
@@ -971,18 +959,15 @@ Disk and some attached resources may still cost.
 
 ### Immediate
 
-1. Deploy the local DAG change to the VPS so future uploads use `uploaded_at=<UTC_RUN_TIME>/start_hour=<DATA_WINDOW>/...`.
-2. Let the next scheduled VPS Airflow run execute at 07:00 Bangkok.
-3. Confirm the DAG run succeeds in Airflow.
-4. Confirm `fabf2sea01` returns to `Paused`.
-5. Confirm SQL endpoint shows reduced-volume data, not the old 47,776-row high-volume test batch.
-6. Check Azure Cost Management later because cost data can lag.
+1. Let the next scheduled run fire at 07:00 Bangkok (2026-09-02 00:00 UTC); keep the Mac awake + online.
+2. Confirm the run succeeds in Airflow UI (all 9 tasks green) and that `fabf2sea01` returns to `Paused`.
+3. Check Azure Cost Management later - cost data can lag several hours.
 
-### Next Infrastructure Step
+### Optional Improvements
 
-1. Define a simple deployment flow from local Mac to VPS, for example `rsync`.
-2. Change the default Airflow password.
-3. Add HTTPS with a domain and Caddy/Nginx if this demo will be shared.
+1. Set `max_active_runs=1` on the main DAG (it mutates a shared F2 capacity; a manual trigger over a scheduled run currently collides on resume).
+2. Pick an unattended always-on runtime if daily reliability matters (see "Runtime Options").
+3. Change the default Airflow password; add HTTPS if the UI is ever exposed beyond localhost.
 4. Consider adding a small Airflow/Fabric validation task that records selected raw path and row count.
 
 ### Later

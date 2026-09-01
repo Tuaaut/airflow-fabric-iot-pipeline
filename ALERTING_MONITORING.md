@@ -244,7 +244,7 @@ fab auth login
 fab ls
 ```
 
-Check Airflow DAG state from the VPS:
+Check Airflow DAG state (run from the repo dir where the stack is up):
 
 ```bash
 docker compose exec airflow-apiserver airflow dags state qr_printing_machine_api_ingestion '<RUN_ID>'

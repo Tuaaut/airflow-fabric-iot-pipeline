@@ -18,7 +18,7 @@ The scenario is an industrial high-speed QR printing line for beverage bottle/ca
 ## What This Demonstrates
 
 - Apache Airflow as the orchestration layer for a daily data pipeline
-- Dockerized services running on an Ubuntu VPS
+- Dockerized services (Docker Compose) - portable across a local Mac or any Linux host
 - API extraction from a simulated industrial IoT machine source
 - Handling multiple machine-data grains: item events, minute telemetry, and fault logs
 - Raw JSON landing in Microsoft Fabric OneLake / Lakehouse Files
@@ -43,7 +43,7 @@ The goal is to convert raw IoT-style operational data into curated facts, dimens
 
 ```mermaid
 flowchart TD
-    A["Contabo Ubuntu VPS"] --> B["Docker Compose"]
+    A["Docker host (local Mac / any Linux)"] --> B["Docker Compose"]
     B --> C["Apache Airflow DAG"]
     C --> D["Machine API Container"]
     D --> E["Raw JSON Landing<br/>Microsoft OneLake"]
@@ -174,7 +174,7 @@ Daily pipeline completion email is documented in `ALERTING_MONITORING.md`, but n
 - Semantic model
 - Azure Entra service principal
 - Azure ARM API for Fabric F2 pause/resume
-- Ubuntu VPS
+- Docker Compose runtime (local Mac; deployable to any Linux host)
 
 ## Screenshots
 
@@ -193,7 +193,7 @@ dags/qr_printing_machine_api_dag.py       Airflow orchestration DAG
 machine_api/app.py                        Simulated QR printing machine API
 fabric/notebooks/qr_printing_transform.py Fabric transformation notebook source
 fabric/notebooks/semantic_model_setup.py  Semantic model setup notebook source
-docker-compose.yaml                       Local/VPS Airflow stack
+docker-compose.yaml                       Airflow + machine-api stack (any Docker host)
 .env.example                              Required environment variable template
 ```
 

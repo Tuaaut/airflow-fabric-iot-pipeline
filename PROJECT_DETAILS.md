@@ -33,7 +33,7 @@ The goal is to learn Airflow while keeping cloud costs as low as possible.
 ## Final Architecture
 
 ```text
-Contabo Ubuntu VPS
+Docker host (local Mac now; any Linux host optional)
     ↓
 Docker Compose
     ↓
