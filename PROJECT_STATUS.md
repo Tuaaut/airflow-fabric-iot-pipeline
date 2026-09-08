@@ -1,25 +1,70 @@
 # Project Status: Airflow + Fabric + Power BI Demo
 
-Last updated: 2026-09-01 Bangkok
+Last updated: 2026-09-05 Bangkok
 
-## Status Note (2026-09-01)
+## Shared Retail integration (2026-09-05)
+
+The existing Airflow now also hosts `retail_dbt_daily` at 07:30 Bangkok, ingesting the previous day's synthetic retail data. See the [Retail blueprint](../DBT/my_dbt_project/DeploymentAndLogic.md) for its model, progress and recovery notes.
+
+- No additional persistent services: only the existing worker uses extended image `local/airflow-retail:3.2.2`, with dbt isolated in `/opt/retail-venv`.
+- All three DAGs use one-slot `shared_pipeline`; worker concurrency is 1. World Bank remains paused. IoT scheduling/business logic is unchanged.
+- Retail data uses a separate named DuckDB volume; timestamped DBeaver snapshots are exported to the Retail project, never to the IoT data folders.
+- Daily start remains 06:40 and now unpauses both IoT and Retail. Safe-stop remains 08:00 and additionally requires today's scheduled Retail run to succeed. It pauses both DAGs and rechecks active runs before stopping Docker.
+- Integration fixture: repeated/resized/backfilled dates, 21 models + 84 tests, and a held-open snapshot reader passed. Three live Retail runs passed; worker recreation preserved the DB hash and 100 unique orders. All 8 services are healthy. Safe-stop CheckOnly passed without stopping Docker or triggering Fabric. Full evidence is in the Retail blueprint.
+- Earlier operational descriptions mentioning only the main DAG's start/stop gates are superseded by this section. The next real unattended combined cycle is 2026-09-06; it has not yet been observed.
+
+## Windows Migration Progress
+
+This section is the authoritative progress log for the completed macOS-to-Windows migration.
+
+| Step | Status | Evidence / result |
+|---:|---|---|
+| 1. Recover Git repository and `.env.example` | Complete | Restored `.git` from `origin/main`, preserved newer local documentation, restored tracked `.env.example`, and verified `main...origin/main`. |
+| 2. Repair Docker Desktop PATH and WSL2 access to `E:` | Complete | Docker Desktop 4.89.0 / Engine 29.7.2 / Compose 5.5.0 work; a Linux container successfully read a bind mount from this project on `E:`. The current Codex process needs a PATH prefix until Codex is restarted. |
+| 3. Create a safe Windows `.env` | Complete | Created a Git-ignored `.env` with newly generated local secrets. Local validation used `FABRIC_MODE=local`; after validation, the required cloud IDs and a new one-year Windows service-principal credential were added for scheduled Fabric runs. |
+| 4. Validate Compose and start local mode | Complete | `docker compose config --quiet` passed; initialization exited 0; all 8 services were verified healthy. The final resting state is intentionally stopped by the safe-stop task. |
+| 5. Test Machine API and local Airflow without resuming F2 | Complete | Machine API and Airflow health endpoints passed; no DAG import errors; manual validation run `windows-local-validation-20260904T143500Z` completed all 9 tasks; DAG was paused again; Azure reported F2 state `Paused` afterward. |
+| 6. Verify Fabric/Azure authentication on Windows | Complete | Azure CLI user authentication can read F2. Fabric CLI 1.7.0 is authenticated as `airflow-fabric-demo-sp` and can list the target workspace plus its Lakehouse, notebooks, SQL endpoint, and semantic model. A Windows-specific one-year app credential was appended without removing the existing credential; non-secret cloud IDs and the new secret are stored only in the Git-ignored `.env`. |
+| 7. Controlled Fabric flow; confirm F2 returns to Paused | Complete | Controlled run `windows-fabric-validation-20260904T145100Z` completed all 9 tasks in about 3m17s: F2 resume, Machine API extract, OneLake upload, Fabric notebook, curated validation, Power BI refresh, and F2 pause. The DAG was paused again and Azure reported F2 `Paused` on two post-run checks. |
+| 8. Replace macOS `launchd` with PowerShell + Task Scheduler | Complete | Replaced the macOS scripts with four PowerShell 5.1 scripts and installed `AirflowFabric-Start` (06:40) plus `AirflowFabric-SafeStop` (08:00). Verified pass/fail-closed gates, a real scheduled stop, a cold Docker Desktop start, and a second safe stop. Both tasks are `Ready`, last result 0, and retry up to 6 times every 10 minutes. Final state: Docker stopped and F2 `Paused`. |
+| 9. Make Windows the documentation source of truth | Complete | Rewrote current runtime, safety, caveats, commands, and next steps for Windows; aligned `README.md`, `PROJECT_DETAILS.md`, `.env.example`, and the existing automation README. Stale-current-state scan and Markdown link checks passed. |
+
+Migration status: 9/9 complete. The first unattended Windows schedule exposed a network-readiness gap; the incident and completed hardening are recorded below. Next operational checkpoint: verify the hardened unattended schedule on 2026-09-06 (06:40 start, 07:00 DAG, 08:00 safe stop).
+
+## Unattended Schedule Incident and Hardening (2026-09-05)
+
+| Item | Result |
+|---|---|
+| Scheduled start | `AirflowFabric-Start` ran at 06:40 and made all 8 local services healthy. |
+| DAG outcome | `scheduled__2026-09-05T00:00:00+00:00` failed because both configured public DNS resolvers timed out inside Docker; `login.microsoftonline.com` could not be resolved. |
+| Windows root cause | The laptop entered Modern Standby while connected to AC power. The AC display-idle timer is 10 minutes, while both AC sleep timers are set to Never. Its automatically preferred network was a phone hotspot, which disconnected overnight and was no longer visible. The home Wi-Fi profile was configured for manual connection, so Windows did not reconnect on its own and the laptop stayed offline until the morning. |
+| Modern Standby prevention | Installed and verified `AirflowFabric-KeepAwakeOnAC` in `Running` state. The user-logon task holds a Windows system-required power request while the user remains signed in and AC is connected. It releases the request on battery and does not keep the display on. |
+| Why migration validation missed it | The controlled validation ran while Windows already had Internet access. The original start script checked only Docker engine and local container health; it did not test Windows or worker DNS/HTTPS and did not simulate Modern Standby with no associated Wi-Fi network. |
+| Wi-Fi correction | The home Wi-Fi profile is now auto-connect and first in priority order. The phone hotspot remains available as a secondary profile. |
+| Scheduler correction | Both Windows tasks now require network availability while retaining wake-to-run, start-when-available, and the existing retry policy. |
+| Startup correction | The start script waits for Windows DNS/HTTPS before starting Docker, then requires the Airflow worker to resolve and reach Microsoft login over HTTPS before the DAG can be unpaused. |
+| Docker DNS correction | Removed fixed `1.1.1.1` / `8.8.8.8` overrides. Docker now forwards DNS through the active Windows network. |
+| Live verification | At 08:30-08:32, both new connectivity gates passed, Microsoft login returned HTTP 200 from the worker, all 8 services were healthy, and active DAG runs were 0. |
+| Remaining checkpoint | Confirm the full unattended 06:40 / 07:00 / 08:00 cycle on 2026-09-06. The failed 2026-09-05 DAG was not retried automatically. |
+
+## Status Note (2026-09-04)
 
 ```text
 Contabo VPS subscription: CANCELLED (paid period ended 2026-07-12, server deprovisioned).
-Runtime NOW: local Mac Docker Compose stack (this repo), brought back up 2026-09-01.
-  8 containers, all "restart: always" -> auto-resume when Docker Desktop starts.
-  Airflow UI: http://localhost:8080  (login airflow / airflow)
-Schedule: both DAGs UNPAUSED. Main DAG @daily 00:00 UTC / 07:00 Bangkok.
-  Next run: 2026-09-02 00:00 UTC. Requires the Mac awake + Docker running at that time.
-Verified 2026-09-01: full end-to-end run success in ~4.8 min - resume F2 -> machine API
-  extract (~4,800 events) -> OneLake upload -> Fabric notebook transform -> validate curated
-  Delta tables -> Power BI semantic model refresh -> pause F2. F2 confirmed back to Paused.
-Fabric F2 capacity fabf2sea01: Paused ($0 compute) between runs; briefly Active (~5 min,
-  a few cents) during each run, then paused by the DAG.
-Local folder: renamed Airflow-warehouse-dashboard -> airflow-fabric-iot-pipeline to match the repo.
-Known issue: DAG has max_active_runs=16 (Airflow default). A manual trigger on top of the
-  scheduled run collides on F2 resume ("Service is not ready to be updated"). Recommend
-  setting max_active_runs=1 on the DAG since it mutates a shared F2 capacity.
+Runtime NOW: Windows 11 + Docker Desktop + WSL2 from this repository on drive E:.
+Docker Desktop is intentionally stopped outside the daily automation window.
+Airflow UI while running: http://localhost:8080 (credentials are stored only in .env).
+Schedule: Windows Task Scheduler starts Docker/Airflow at 06:40 Bangkok and safely stops
+them at 08:00. The main DAG runs @daily at 00:00 UTC / 07:00 Bangkok.
+Main DAG is paused while Docker is off; the start task unpauses it after health checks.
+Secondary world_bank_indicators DAG remains paused.
+Next scheduled run: 2026-09-05 00:00 UTC / 07:00 Bangkok.
+Verified 2026-09-04: local validation and a controlled Fabric run completed all 9 tasks.
+The Fabric run resumed F2, extracted Machine API data, uploaded to OneLake, ran the
+notebook, validated curated tables, refreshed the semantic model, and paused F2.
+Fabric F2 capacity fabf2sea01: Paused between runs; final Azure check = Paused.
+Concurrency guard: main DAG max_active_runs=1.
+Shutdown guard: daily DAG success + pause task success + zero active DAG runs + F2 Paused.
 ```
 
 ## Document Map
@@ -45,12 +90,12 @@ The project demonstrates:
 * Fabric Delta tables and SQL endpoint validation
 * Power BI semantic model refresh
 * Paid Fabric F2 pause/resume cost control
-* Portable Docker Compose runtime (local Mac now; any low-cost Linux host optional)
+* Portable Docker Compose runtime (Windows 11 + WSL2 now; Linux host optional)
 
 ## Current Architecture
 
 ```text
-Docker host (local Mac; any Linux host) - Docker Compose
+Windows 11 host - Docker Desktop (WSL2 Linux containers) - Docker Compose
     ↓
 Apache Airflow
     ↓
@@ -69,7 +114,7 @@ Power BI semantic model refresh
 Airflow pauses Fabric F2 capacity
 ```
 
-Previous local development architecture:
+Previous local development architecture (historical):
 
 ```text
 Mac Docker Compose
@@ -80,36 +125,40 @@ Same Airflow → Machine API → Fabric → Power BI pipeline
 ## Current Operating State
 
 ```text
-Runtime host: local Mac Docker Compose (this repo dir), running since 2026-09-01
-Airflow scheduler: running (docker compose stack, 8 containers, restart: always)
-Airflow UI: http://localhost:8080  (airflow / airflow)
-Main DAG: qr_printing_machine_api_ingestion - UNPAUSED, @daily 00:00 UTC / 07:00 Bangkok
-Secondary DAG: world_bank_indicators - UNPAUSED, @daily
-Last successful run: scheduled__2026-09-01T00:00:00 (all 9 tasks, ~4.8 min)
-Next run: 2026-09-02 00:00 UTC (needs Mac awake + Docker Desktop running)
-Fabric capacity: fabf2sea01, F2, Southeast Asia - Paused between runs, Active during a run
-Fabric workspace: airflow-fabric-demo-dev (Lakehouse lh_qr_printing_demo, 2 notebooks, semantic model)
-Daily data volume: about 4,800 print events/day
+Runtime host: Windows 11, repository E:\DE-BI-ML-Projects\airflow-fabric-iot-pipeline
+Container runtime: Docker Desktop 4.89.0, Engine 29.7.2, Compose 5.5.0, WSL2 backend
+Airflow image: apache/airflow:3.2.2; CeleryExecutor; 8 healthy runtime services when started
+Airflow UI while running: http://localhost:8080 (credentials stored only in Git-ignored .env)
+Main DAG: qr_printing_machine_api_ingestion, @daily 00:00 UTC / 07:00 Bangkok, max_active_runs=1
+Secondary DAG: world_bank_indicators, paused
+Latest controlled Fabric run: windows-fabric-validation-20260904T145100Z - success, all 9 tasks
+Next scheduled run: 2026-09-05 00:00 UTC / 07:00 Bangkok
+Fabric capacity: fabf2sea01, F2, Southeast Asia - Paused
+Fabric workspace: airflow-fabric-demo-dev (Lakehouse, 2 notebooks, SQL endpoint, semantic model)
+Final resting state: Docker Desktop stopped; both Windows scheduled tasks Ready, last result 0
 ```
 
 Important:
 
 ```text
-The Contabo VPS is gone (cancelled 2026-07-12). The scheduler now runs locally on
-the Mac via Docker Compose. The daily run only fires if the Mac is awake and
-Docker Desktop is running at 07:00 Bangkok; if the Mac is asleep the run is
-skipped (catchup=False, no backfill).
-Set Docker Desktop to "Start when you sign in"; the containers use restart: always
-so the stack comes back automatically after a reboot.
-For an unattended always-on runtime, see "Runtime Options" below.
+Windows Task Scheduler owns the daily runtime window. AirflowFabric-Start runs at 06:40,
+starts Docker/Compose, waits for all 8 services to become healthy, verifies zero active runs,
+then unpauses the main DAG. AirflowFabric-SafeStop runs at 08:00 and stops Docker only after
+the expected daily DAG and pause_fabric_capacity task succeed, all DAG runs are inactive,
+and Azure reports F2 Paused. A failed gate leaves Docker running and retries every 10 minutes
+up to 6 times. Both tasks use wake-to-run and the current user's interactive token, so the
+user must remain signed in and Windows wake timers must be enabled.
+
+Do not also enable Docker Desktop auto-start at sign-in unless these scheduled tasks are
+disabled first. See scripts/docker-auto/README.md for installation and test commands.
 ```
 
 ## Latest Local Documentation Updates
 
-Added on 2026-06-17:
+Updated through 2026-09-04:
 
 ```text
-Fabric CLI installed locally: fab version 0.1.10
+Fabric CLI on Windows: fab version 1.7.0, authenticated as airflow-fabric-demo-sp
 Alerting doc added: ALERTING_MONITORING.md
 Logic Apps alert placeholders added to .env.example
 Budget alert recipient documented as Pattaratua@gmail.com
@@ -130,7 +179,7 @@ What is not done yet:
 Airflow does not yet send an automatic email after the scheduled daily run.
 Logic Apps workflow has not yet been created/authenticated.
 Airflow DAG has not yet been modified with send_pipeline_alert_to_logic_app.
-Fabric CLI is installed but not logged in; run fab auth login when needed.
+Fabric CLI authentication is working; the Windows service-principal credential expires 2027-09-04.
 ```
 
 ## Local-Only Learning Files
@@ -153,7 +202,7 @@ These files are personal learning aids for guided practice. The public GitHub re
 Git handling:
 
 ```text
-The files still exist on the local Mac, but they are excluded through .git/info/exclude so they are not tracked or pushed.
+The files remain local in the Windows workspace and are not committed or pushed.
 ```
 
 ## Files
@@ -167,9 +216,9 @@ dags/qr_printing_machine_api_dag.py
 Local simulated Machine API:
 
 ```text
-machine_api/app.py
-machine_api/Dockerfile
-machine_api/requirements.txt
+machine-api/app.py
+machine-api/Dockerfile
+machine-api/requirements.txt
 ```
 
 Fabric notebook source files:
@@ -213,8 +262,8 @@ Completed:
   * redis
 * Main DAG is visible in Airflow UI.
 * DAG has been changed from hourly to daily.
-* DAG is unpaused for daily automation.
-* Local stack was stopped on 2026-06-13 when the scheduler moved to the Contabo VPS; it was brought back up locally on 2026-09-01 after the VPS was cancelled.
+* Windows Task Scheduler unpauses the main DAG only during the daily runtime window.
+* Local stack was stopped on 2026-06-13 when the scheduler moved to the Contabo VPS; it returned to macOS on 2026-09-01 and migrated to Windows on 2026-09-04.
 
 Current schedule:
 
@@ -636,19 +685,22 @@ Logs:         variable
 
 ## Current Safety State
 
-Verified on 2026-09-01 (local Mac Docker Compose; supersedes the 2026-06-13 VPS check):
+Verified on 2026-09-04 on Windows:
 
 ```text
-Runtime host: local Mac Docker Compose (8 containers, restart: always)
-Airflow containers: running / healthy
-Machine API: healthy
-DAGs: unpaused (qr_printing_machine_api_ingestion, world_bank_indicators)
-Airflow URL: http://localhost:8080  (airflow / airflow)
-Last run: scheduled__2026-09-01T00:00:00 - success, all 9 tasks, ~4.8 min
-F2 capacity: Paused (Active only during a run, then paused by the DAG)
+Git repository and .env.example restored; .env remains Git-ignored.
+Docker Desktop PATH/WSL2/E: bind mounts verified.
+Local-mode run: windows-local-validation-20260904T143500Z - success, all 9 tasks.
+Fabric-mode run: windows-fabric-validation-20260904T145100Z - success, all 9 tasks.
+Main DAG concurrency: max_active_runs=1.
+Main DAG final state: paused (the start task unpauses it during the daily window).
+Secondary DAG: paused.
+F2 capacity final state: Paused, confirmed after the Fabric run and after automation tests.
+Task Scheduler: AirflowFabric-Start and AirflowFabric-SafeStop Ready; last result 0.
+Docker Desktop final state: stopped intentionally.
 ```
 
-Azure cost check on 2026-06-13:
+Historical Azure cost check from 2026-06-13 (not a current cost figure):
 
 ```text
 Month-to-date actual cost shown by Azure Cost Management API: about $0.738 USD
@@ -658,33 +710,17 @@ Budget current spend: about $0.738 / $20
 Cost data can lag by several hours.
 ```
 
-Local Mac note:
-
-```text
-Mac Docker Desktop is no longer the required scheduler for daily automation.
-Use it only for local development/testing unless intentionally moving the schedule back.
-```
-
-Current macOS power finding:
-
-```text
-AC power sleep = 0
-```
-
-That means the Mac should not idle-sleep while plugged in. No `pmset` scheduled wake command has been applied yet.
-
 ## Important Caveats
 
-### The Mac Is the Scheduler Again
-
-Between 2026-06-13 and 2026-07-12 the scheduler ran on the Contabo VPS. The VPS
-was cancelled, and since 2026-09-01 the scheduler runs on this Mac via Docker
-Compose.
+### Windows Task Scheduler Owns the Runtime Window
 
 ```text
-The Mac must be awake, plugged in, and online at 07:00 Bangkok for the daily run.
-If the Mac sleeps at that time the run is skipped (catchup=False, no backfill).
-Docker Desktop must be running; containers use restart: always so they resume after a reboot.
+The Windows user must remain signed in; the tasks use Interactive logon type.
+WakeToRun and StartWhenAvailable are enabled, but Windows wake timers must also be allowed.
+If the 08:00 safety gate fails, Docker stays running and the task retries every 10 minutes.
+Do not force-close Docker while F2 is Active or any DAG run is queued/running.
+Do not enable Docker Desktop auto-start at sign-in while this schedule is active.
+See scripts/docker-auto/README.md.
 Editing a DAG file here takes effect on the next parse - no deploy step (the stack mounts ./dags).
 ```
 
@@ -710,10 +746,10 @@ That message can happen after Fabric refreshes/discards a blank query object; it
 Current Airflow access:
 
 ```text
-http://<vps-ip>:8080
+http://localhost:8080 (only while the Windows Docker runtime is running)
 ```
 
-This is not HTTPS. Chrome will show "Not Secure".
+This is HTTP. Keep Windows Firewall/network exposure restricted to the local machine unless remote access is intentionally secured.
 
 For a longer-running or shared demo, add:
 
@@ -721,40 +757,38 @@ For a longer-running or shared demo, add:
 Domain name
 Reverse proxy such as Caddy or Nginx
 Free Let's Encrypt certificate
-Stronger Airflow admin password
+Dedicated production identity instead of the local generated admin credential
 Possibly IP allowlisting or VPN
 ```
 
-## Runtime Options (to resume the schedule)
+## Alternative Runtime Options
 
-The stack is the official Apache Airflow 3 CeleryExecutor Docker Compose
-(~7 containers: postgres, redis, apiserver, scheduler, dag-processor, worker,
-triggerer + the machine-api container). It wants ~2 vCPU / 4 GB and runs 24/7,
-but the DAG only does a few minutes of real work per run.
+The current source-of-truth runtime is Windows Task Scheduler + Docker Desktop.
+The stack is Apache Airflow 3 CeleryExecutor with 8 runtime services. If an
+always-on remote host is needed later, these remain alternatives:
 
 Cheaper than the old Contabo VPS (EUR 5.50 / ~USD 12 per month):
 
 | Option | Specs | Cost | Notes |
 |---|---|---|---|
-| **Oracle Cloud Always Free** (Ampere A1, ARM) | up to 4 OCPU / 24 GB | **USD 0 / month, forever** | Best value. ARM images work (same as the Mac). Free-tier ARM capacity can be scarce in busy regions; a 24/7 stack is not "idle" so it will not be reclaimed. |
+| **Oracle Cloud Always Free** (Ampere A1, ARM) | up to 4 OCPU / 24 GB | **USD 0 / month, forever** | ARM image compatibility must be revalidated before migration. Free-tier capacity can be scarce. |
 | **Netcup** VPS ARM G11 | 4 vCPU / 8 GB / 256 GB | ~EUR 3.25 / month | Cheapest reliable paid, always-on. |
 | **Hetzner Cloud** CX22 | 2 vCPU / 4 GB / 40 GB | ~EUR 3.79 / month | Note: Hetzner previously required extra ID verification. |
 | **Azure VM B1s, auto-stopped** | 1 vCPU / 1 GB (too small alone) or B2s 2 vCPU / 4 GB | ~USD 0.10 / month run cost + ~USD 1.5 / month for the managed disk when deallocated | Only viable with a start/stop automation around each run; adds moving parts. |
 | **GitHub Actions** (scheduled workflow) | ephemeral CI runner | **USD 0** (public repo) | No server. The workflow does `docker compose up`, triggers the DAG, waits, tears down. Changes the story from "Airflow on a server" to "Airflow in CI". |
 
-Recommendation: **Oracle Cloud Always Free ARM VM** - keeps a real always-on
-Airflow instance for the portfolio story at zero cost. If the free ARM instance
-is unavailable, **Netcup ARM (~EUR 3.25)**. If a server is not wanted at all,
-the **GitHub Actions** ephemeral approach is zero-cost and zero-maintenance.
+Current recommendation: keep the verified Windows schedule. Revisit an always-on
+host only if unattended execution while signed out becomes a requirement.
 
 Deploy is identical on any of them: install Docker + the compose plugin,
 `git clone` into `/opt/airflow-fabric-iot-pipeline`, `cp .env.example .env` and
 fill it in, `docker compose up airflow-init` then `docker compose up -d`.
 
-## Useful Commands
+## Useful Windows Commands
 
-The stack is plain Docker Compose, so the same commands work on the local Mac or
-on any new runtime host (see "Runtime Options"). There is no VPS anymore.
+Run these from the Windows project root. The current Codex process may need a
+restart before it inherits Docker's machine-level PATH; Task Scheduler scripts
+use the absolute Docker CLI path and are not affected.
 
 Start the stack:
 
@@ -768,16 +802,16 @@ Check containers:
 docker compose ps
 ```
 
-Check Airflow health:
+Check Airflow health in PowerShell:
 
 ```bash
-curl http://localhost:8080/api/v2/monitor/health
+Invoke-RestMethod http://localhost:8080/api/v2/monitor/health
 ```
 
-Check Machine API health:
+Check Machine API health in PowerShell:
 
 ```bash
-curl http://localhost:8000/health
+Invoke-RestMethod http://localhost:8000/health
 ```
 
 Open Airflow UI:
@@ -806,31 +840,31 @@ curl -s 'http://localhost:8000/v1/qr-printing/lines/LINE_01/window?start_ts=2026
 Pause DAG:
 
 ```bash
-docker compose exec airflow-apiserver airflow dags pause qr_printing_machine_api_ingestion
+docker compose exec --no-TTY airflow-scheduler airflow dags pause -y qr_printing_machine_api_ingestion
 ```
 
 Unpause DAG:
 
 ```bash
-docker compose exec airflow-apiserver airflow dags unpause qr_printing_machine_api_ingestion
+docker compose exec --no-TTY airflow-scheduler airflow dags unpause -y qr_printing_machine_api_ingestion
 ```
 
 Trigger manual DAG run:
 
 ```bash
-docker compose exec airflow-apiserver airflow dags trigger qr_printing_machine_api_ingestion
+docker compose exec --no-TTY airflow-scheduler airflow dags trigger qr_printing_machine_api_ingestion
 ```
 
 Check DAG run state:
 
 ```bash
-docker compose exec airflow-apiserver airflow dags state qr_printing_machine_api_ingestion '<RUN_ID>'
+docker compose exec --no-TTY airflow-scheduler airflow dags state qr_printing_machine_api_ingestion '<RUN_ID>'
 ```
 
 Check task states:
 
 ```bash
-docker compose exec airflow-apiserver airflow tasks states-for-dag-run qr_printing_machine_api_ingestion '<RUN_ID>'
+docker compose exec --no-TTY airflow-scheduler airflow tasks states-for-dag-run qr_printing_machine_api_ingestion '<RUN_ID>'
 ```
 
 Check Fabric capacity state:
@@ -959,19 +993,29 @@ Disk and some attached resources may still cost.
 
 ### Immediate
 
-1. Let the next scheduled run fire at 07:00 Bangkok (2026-09-02 00:00 UTC); keep the Mac awake + online.
-2. Confirm the run succeeds in Airflow UI (all 9 tasks green) and that `fabf2sea01` returns to `Paused`.
-3. Check Azure Cost Management later - cost data can lag several hours.
+1. Let the first unattended Windows run fire on 2026-09-05: start task 06:40, DAG 07:00, safe-stop task 08:00 Bangkok. Keep the Windows user signed in, the PC powered, and wake timers enabled.
+2. Confirm both scheduled tasks return result 0, the DAG completes all 9 tasks, F2 returns to `Paused`, and Docker Desktop stops.
+3. Check Azure Cost Management later; cost data can lag several hours.
 
 ### Optional Improvements
 
-1. Set `max_active_runs=1` on the main DAG (it mutates a shared F2 capacity; a manual trigger over a scheduled run currently collides on resume).
-2. Pick an unattended always-on runtime if daily reliability matters (see "Runtime Options").
-3. Change the default Airflow password; add HTTPS if the UI is ever exposed beyond localhost.
-4. Consider adding a small Airflow/Fabric validation task that records selected raw path and row count.
+1. Implement the documented Logic Apps completion/failure email alert.
+2. Move the service-principal secret from `.env` to Key Vault or another runtime secret store.
+3. Add HTTPS and access controls if the Airflow UI is ever exposed beyond localhost.
+4. Consider an always-on runtime only if execution while the Windows user is signed out becomes necessary.
 
 ### Later
 
 1. Build Power BI report/dashboard when pipeline work is stable.
 2. Consider productionizing secrets with Key Vault or managed identity.
 3. Consider moving from local `.env` secret handling to a safer deployment pattern.
+
+
+## Laptop memory investigation — 2026-09-07
+
+- Completed: Windows automatic pagefile management enabled (Windows restart pending). User WSL config now limits all WSL 2 distributions to memory=6GB and swap=4GB, with autoMemoryReclaim=dropCache, effective on next WSL start.
+- Reviewed: Windows start/safe-stop tasks use IgnoreNew; Celery concurrency=1; primary DAGs max_active_runs=1. No demonstrated duplicate-run problem and no schedule/Compose changes made.
+- Found: 06:40 start failed at 06:45:13 because Docker engine never became ready; 08:00 safe-stop failed because engine was unavailable. Windows memory events show host com.docker.backend.exe growing afterward. This process is outside the WSL memory ceiling; root cause remains unconfirmed.
+- Checked: docker compose config --quiet passed. Docker/WSL were stopped; no cloud-connected workload was started for testing.
+- Next: after Windows restart, verify effective limits and observe Docker startup, host backend memory, and WSL/container memory. Preserve Fabric pause/safe-stop checks.
+- [Full investigation and progress log](C:/Users/Pattara_Personnel/Documents/Codex/2026-09-07/ple/outputs/laptop-stability.md)

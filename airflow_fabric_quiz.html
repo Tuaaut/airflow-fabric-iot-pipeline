@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Airflow + Fabric Learning Quiz</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #617086;
+      --line: #d9dee8;
+      --accent: #1463ff;
+      --good: #0f8a5f;
+      --bad: #c7362f;
+      --soft-good: #e9f7f1;
+      --soft-bad: #fff0ef;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: grid;
+      place-items: start center;
+      padding: 28px;
+    }
+
+    .layout {
+      width: min(1180px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    main,
+    aside {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 20px 45px rgba(27, 38, 59, 0.08);
+      overflow: hidden;
+    }
+
+    aside {
+      padding: 22px;
+      position: sticky;
+      top: 18px;
+    }
+
+    aside h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    aside p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .links {
+      display: grid;
+      gap: 10px;
+      margin: 16px 0 20px;
+    }
+
+    .links a {
+      color: var(--accent);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .mini {
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      display: grid;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    header {
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .score {
+      min-width: 120px;
+      text-align: right;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .body {
+      padding: 28px;
+    }
+
+    .progress {
+      height: 8px;
+      background: #eef1f6;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 240ms ease;
+    }
+
+    .question-no {
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .question {
+      font-size: 25px;
+      line-height: 1.3;
+      margin: 0 0 22px;
+      max-width: 760px;
+    }
+
+    .answers {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    button.answer {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 16px 18px;
+      text-align: left;
+      font: inherit;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    button.answer:hover:not(:disabled) {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    button.answer:disabled {
+      cursor: default;
+    }
+
+    .letter {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #eef3ff;
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .answer.correct {
+      border-color: var(--good);
+      background: var(--soft-good);
+    }
+
+    .answer.wrong {
+      border-color: var(--bad);
+      background: var(--soft-bad);
+    }
+
+    .feedback {
+      min-height: 78px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 22px;
+    }
+
+    .feedback.good {
+      border-color: rgba(15, 138, 95, 0.35);
+      color: #0b6346;
+      background: var(--soft-good);
+    }
+
+    .feedback.bad {
+      border-color: rgba(199, 54, 47, 0.35);
+      color: #8a241f;
+      background: var(--soft-bad);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .action {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 11px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    code {
+      background: #f0f3f8;
+      border: 1px solid #e2e7f0;
+      border-radius: 6px;
+      padding: 2px 5px;
+      font-size: 0.92em;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      .layout {
+        display: block;
+      }
+
+      aside {
+        position: static;
+        margin-top: 14px;
+      }
+
+      header,
+      .body {
+        padding: 20px;
+      }
+
+      header {
+        display: block;
+      }
+
+      .score {
+        margin-top: 12px;
+        text-align: left;
+      }
+
+      .question {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <main>
+      <header>
+        <div>
+          <h1>Airflow + Fabric Learning Quiz</h1>
+          <p class="sub">Click an answer to practice the QR printing pipeline concepts step by step.</p>
+        </div>
+        <div class="score" id="score">Score: 0 / 0</div>
+      </header>
+
+      <section class="body">
+        <div class="progress" aria-label="Quiz progress"><span id="progress"></span></div>
+        <div class="question-no" id="questionNo"></div>
+        <h2 class="question" id="question"></h2>
+        <div class="answers" id="answers"></div>
+        <div class="feedback" id="feedback">Choose an answer to check yourself.</div>
+        <div class="actions">
+          <button class="action" id="restart">Restart</button>
+          <button class="action primary" id="next">Next question</button>
+        </div>
+      </section>
+    </main>
+
+    <aside>
+      <h2>Review Files</h2>
+      <p>Use these local docs to review the architecture and current status while practicing.</p>
+      <div class="links">
+        <a href="README.md">README</a>
+        <a href="PROJECT_STATUS.md">Project Status</a>
+        <a href="PROJECT_DETAILS.md">Project Details</a>
+        <a href="ALERTING_MONITORING.md">Alerting Notes</a>
+        <a href="FABRIC_CLEANUP_INVENTORY.md">Fabric Cleanup Inventory</a>
+      </div>
+      <div class="mini">
+        <div><strong>DAG:</strong> <code>qr_printing_machine_api_ingestion</code></div>
+        <div><strong>Source:</strong> Machine API container</div>
+        <div><strong>Raw:</strong> OneLake / Lakehouse Files</div>
+        <div><strong>Curated:</strong> Fabric Delta tables</div>
+        <div><strong>Cost check:</strong> Fabric F2 paused after run</div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        q: "What is Airflow's main role in this project?",
+        options: [
+          "Airflow orchestrates the daily pipeline steps in the correct order.",
+          "Airflow stores the final Delta tables.",
+          "Airflow replaces the Fabric semantic model."
+        ],
+        answer: 0,
+        explain: "Airflow is the conductor. It runs tasks in order and tracks success or failure."
+      },
+      {
+        q: "What is a DAG?",
+        options: [
+          "A report page in Power BI.",
+          "The pipeline definition: tasks plus their order and dependencies.",
+          "A raw JSON file format."
+        ],
+        answer: 1,
+        explain: "A DAG is the recipe for the pipeline. This project's main DAG is qr_printing_machine_api_ingestion."
+      },
+      {
+        q: "What does extract_from_api do?",
+        options: [
+          "Pauses Fabric capacity.",
+          "Calls the Machine API and writes daily raw JSON.",
+          "Creates the semantic model."
+        ],
+        answer: 1,
+        explain: "It collects hourly QR printing data and combines it into one daily raw payload."
+      },
+      {
+        q: "Why keep raw JSON before transforming it?",
+        options: [
+          "So the data can be reprocessed later if logic, schema, or platform changes.",
+          "Because dashboards can only read JSON.",
+          "Because raw files are cheaper than all tables forever."
+        ],
+        answer: 0,
+        explain: "Raw landing gives resilience. If transformation rules change, you can replay from the source-like payload."
+      },
+      {
+        q: "What is OneLake / Lakehouse Files used for?",
+        options: [
+          "Sending budget emails.",
+          "Raw file landing before notebook transformation.",
+          "Running the Airflow scheduler."
+        ],
+        answer: 1,
+        explain: "The DAG uploads raw JSON into Fabric Lakehouse Files, then Fabric transforms it."
+      },
+      {
+        q: "What does the Fabric notebook do?",
+        options: [
+          "Transforms raw QR printing JSON into curated facts, dimensions, and KPI tables.",
+          "Starts the Contabo VPS.",
+          "Stores Airflow task logs."
+        ],
+        answer: 0,
+        explain: "Fabric notebook is the transformation engine for the lakehouse layer."
+      },
+      {
+        q: "What are curated Delta tables?",
+        options: [
+          "Cleaned, typed, analytics-ready tables in the Fabric Lakehouse.",
+          "Screenshots stored in docs.",
+          "Temporary files that should always be deleted immediately."
+        ],
+        answer: 0,
+        explain: "Curated tables include facts, dimensions, and KPI summaries for analytics."
+      },
+      {
+        q: "Why refresh the semantic model?",
+        options: [
+          "So reports can use the latest curated data and measures.",
+          "To pause Fabric capacity.",
+          "To restart Docker Compose."
+        ],
+        answer: 0,
+        explain: "The semantic model is the business metric layer used by reporting."
+      },
+      {
+        q: "Why does the DAG resume and pause Fabric F2 capacity?",
+        options: [
+          "Because Fabric F2 is billable while active.",
+          "Because Airflow cannot run unless Fabric is paused.",
+          "Because raw JSON needs a paused capacity."
+        ],
+        answer: 0,
+        explain: "The project starts Fabric for work, then pauses it to control cost."
+      },
+      {
+        q: "What should the future email alert include?",
+        options: [
+          "Only a screenshot of the Airflow logo.",
+          "Stage status, raw counts, curated validation, semantic refresh status, and final capacity state.",
+          "Only the Azure subscription name."
+        ],
+        answer: 1,
+        explain: "The alert should be a readable daily business pipeline summary, not noisy infrastructure logs."
+      },
+      {
+        q: "Which Airflow task should happen near the end for cost control?",
+        options: [
+          "pause_fabric_capacity",
+          "extract_from_api",
+          "validate_raw"
+        ],
+        answer: 0,
+        explain: "pause_fabric_capacity is the safety step that prevents Fabric F2 from staying active."
+      },
+      {
+        q: "Where should the Logic Apps webhook URL be stored?",
+        options: [
+          "In .env only, not committed to Git.",
+          "Inside README.md.",
+          "Inside screenshots."
+        ],
+        answer: 0,
+        explain: "Webhook URLs are sensitive. Keep them in .env and use .env.example only for placeholders."
+      }
+    ];
+
+    let index = Number(localStorage.getItem("airflowFabricQuizIndex") || 0);
+    let score = Number(localStorage.getItem("airflowFabricQuizScore") || 0);
+    let answered = false;
+
+    const questionNo = document.getElementById("questionNo");
+    const question = document.getElementById("question");
+    const answers = document.getElementById("answers");
+    const feedback = document.getElementById("feedback");
+    const scoreEl = document.getElementById("score");
+    const progress = document.getElementById("progress");
+    const next = document.getElementById("next");
+    const restart = document.getElementById("restart");
+
+    function save() {
+      localStorage.setItem("airflowFabricQuizIndex", String(index));
+      localStorage.setItem("airflowFabricQuizScore", String(score));
+    }
+
+    function render() {
+      if (index >= questions.length) {
+        questionNo.textContent = "Complete";
+        question.textContent = "Nice work. You finished this Airflow + Fabric basics set.";
+        answers.innerHTML = "";
+        feedback.className = "feedback good";
+        feedback.innerHTML = `Final score: <strong>${score} / ${questions.length}</strong>. Restart any time to practice again.`;
+        scoreEl.textContent = `Score: ${score} / ${questions.length}`;
+        progress.style.width = "100%";
+        next.textContent = "Done";
+        next.disabled = true;
+        return;
+      }
+
+      answered = false;
+      const item = questions[index];
+      questionNo.textContent = `Question ${index + 1} of ${questions.length}`;
+      question.textContent = item.q;
+      scoreEl.textContent = `Score: ${score} / ${index}`;
+      progress.style.width = `${(index / questions.length) * 100}%`;
+      feedback.className = "feedback";
+      feedback.textContent = "Choose an answer to check yourself.";
+      next.textContent = "Next question";
+      next.disabled = false;
+
+      answers.innerHTML = "";
+      item.options.forEach((option, optionIndex) => {
+        const button = document.createElement("button");
+        button.className = "answer";
+        button.type = "button";
+        button.innerHTML = `<span class="letter">${String.fromCharCode(65 + optionIndex)}</span><span>${option}</span>`;
+        button.addEventListener("click", () => choose(optionIndex));
+        answers.appendChild(button);
+      });
+    }
+
+    function choose(optionIndex) {
+      if (answered || index >= questions.length) return;
+      answered = true;
+      const item = questions[index];
+      const buttons = [...document.querySelectorAll(".answer")];
+
+      buttons.forEach((button, i) => {
+        button.disabled = true;
+        if (i === item.answer) button.classList.add("correct");
+        if (i === optionIndex && i !== item.answer) button.classList.add("wrong");
+      });
+
+      if (optionIndex === item.answer) {
+        score += 1;
+        feedback.className = "feedback good";
+        feedback.innerHTML = `<strong>Correct.</strong> ${item.explain}`;
+      } else {
+        feedback.className = "feedback bad";
+        feedback.innerHTML = `<strong>Not quite.</strong> Correct answer is ${String.fromCharCode(65 + item.answer)}. ${item.explain}`;
+      }
+
+      save();
+    }
+
+    next.addEventListener("click", () => {
+      if (index >= questions.length) return;
+      index += 1;
+      save();
+      render();
+    });
+
+    restart.addEventListener("click", () => {
+      index = 0;
+      score = 0;
+      save();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

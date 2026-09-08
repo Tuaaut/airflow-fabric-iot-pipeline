@@ -33,7 +33,7 @@ The goal is to learn Airflow while keeping cloud costs as low as possible.
 ## Final Architecture
 
 ```text
-Docker host (local Mac now; any Linux host optional)
+Windows 11 host + Docker Desktop / WSL2 (current; Linux host optional)
     ↓
 Docker Compose
     ↓
@@ -52,21 +52,22 @@ Power BI Semantic Model (Import Mode)
 Power BI Dashboard
 ```
 
-Local Mac Docker remains for development/testing only.
+Windows is the current development and scheduled runtime.
 
 ## Current Implementation Snapshot
 
-As of 2026-09-01, the scheduler runs on the **local Mac via Docker Compose**
-(this repo). The Contabo VPS that previously hosted it was cancelled on
-2026-07-12. A full end-to-end run was verified on 2026-09-01 (~4.8 min, all 9
-tasks green, F2 resumed then paused). The main DAG is unpaused and next fires
-2026-09-02 00:00 UTC / 07:00 Bangkok - it only runs when the Mac is awake and
-Docker Desktop is up.
+As of 2026-09-04, the scheduler runs on **Windows 11 via Docker Desktop/WSL2**
+from this repository on drive `E:`. Local-mode and controlled Fabric-mode runs
+both completed all 9 tasks, and Azure confirmed F2 returned to `Paused`.
+Windows Task Scheduler starts Docker/Airflow at 06:40 Bangkok and safely stops
+it at 08:00 only after the daily DAG, pause task, zero-active-run, and F2 gates
+pass. See `scripts/docker-auto/README.md`; `PROJECT_STATUS.md` is the operating
+source of truth.
 
 The pipeline design (unchanged, also redeployable on any Docker host):
 
 ```text
-Docker Compose Airflow stack (on a runtime host - TBD)
+Docker Compose Airflow stack on Windows Docker Desktop / WSL2
     ↓
 Daily DAG at 00:00 UTC / 07:00 Bangkok
     ↓
@@ -94,10 +95,11 @@ Machine API health: http://<host-ip>:8000/health
 Important:
 
 ```text
-There is no scheduler running. To resume, deploy the Docker Compose stack to a
-new runtime host (see PROJECT_STATUS.md -> Runtime Options).
-When redeploying, use HTTPS + a strong Airflow admin password for any shared demo.
-The local Mac Docker copy is the source of truth for development and editing.
+Docker is intentionally stopped outside the 06:40-08:00 Bangkok runtime window.
+The Windows user must remain signed in and Windows wake timers must be enabled.
+If any safe-stop gate fails, Docker stays running and the task retries.
+Use HTTPS and access controls before exposing Airflow beyond localhost.
+Windows files in this repository are the source of truth for development and operation.
 ```
 
 Contabo billing state (closed):

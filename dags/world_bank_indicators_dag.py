@@ -42,6 +42,7 @@ def fetch_indicator(indicator: str) -> list[dict]:
     start_date=datetime(2026, 1, 1),
     schedule="@daily",
     catchup=False,
+    default_args={"pool": "shared_pipeline"},
     tags=["world-bank", "api", "demo"],
 )
 def world_bank_indicators():

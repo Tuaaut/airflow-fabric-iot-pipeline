@@ -251,6 +251,7 @@ def wait_for_capacity_state(target_state: str) -> dict:
     # run may be in flight. Overlapping runs collide on resume with
     # "Service is not ready to be updated" (Fabric BadRequest subCode 7).
     max_active_runs=1,
+    default_args={"pool": "shared_pipeline"},
     tags=["iot", "api", "qr-printing", "machine"],
 )
 def qr_printing_machine_api_ingestion():

@@ -4,21 +4,24 @@ Production-style data engineering demo for orchestrating IoT-style machine event
 
 The scenario is an industrial high-speed QR printing line for beverage bottle/can traceability. Each item receives a unique QR code, vision inspection validates print quality, telemetry tracks machine health, and logs capture operational faults.
 
-> **Status (2026-09-01):** running again on a **local Mac Docker Compose** stack
-> (the Contabo VPS was cancelled 2026-07-12). A full end-to-end run was verified
-> on 2026-09-01 - resume F2 -> machine API extract -> OneLake -> Fabric notebook
-> transform -> validate -> semantic model refresh -> pause F2 (~4.8 min, all
-> green). The main DAG is `@daily` 07:00 Bangkok and fires whenever the Mac is
-> awake with Docker running. Fabric F2 `fabf2sea01` is **Paused** between runs
-> ($0 compute). See `PROJECT_STATUS.md` for operating notes and always-on
-> runtime options.
+> **Status (2026-09-04):** migrated and verified on **Windows 11 + Docker Desktop
+> (WSL2)**. Local-mode and controlled Fabric-mode runs both completed all 9 tasks.
+> The Fabric run covered F2 resume, Machine API extraction, OneLake upload,
+> notebook transform, curated validation, semantic refresh, and F2 pause.
+> Fabric F2 `fabf2sea01` is **Paused** between runs. See `PROJECT_STATUS.md` for
+> the authoritative operating state and migration evidence.
+>
+> **Docker Desktop is intentionally off outside the daily window.** Windows Task
+> Scheduler starts it at 06:40 Bangkok and stops it at 08:00 only after the DAG
+> succeeds, no run remains active, and Azure confirms F2 is `Paused`. See
+> `scripts/docker-auto/README.md`. Do not enable a competing start-on-login setup.
 
 ![Airflow DAG overview](docs/screenshots/airflow-dag-overview.png)
 
 ## What This Demonstrates
 
 - Apache Airflow as the orchestration layer for a daily data pipeline
-- Dockerized services (Docker Compose) - portable across a local Mac or any Linux host
+- Dockerized services on Windows Docker Desktop / WSL2, portable to Linux hosts
 - API extraction from a simulated industrial IoT machine source
 - Handling multiple machine-data grains: item events, minute telemetry, and fault logs
 - Raw JSON landing in Microsoft Fabric OneLake / Lakehouse Files
@@ -43,7 +46,7 @@ The goal is to convert raw IoT-style operational data into curated facts, dimens
 
 ```mermaid
 flowchart TD
-    A["Docker host (local Mac / any Linux)"] --> B["Docker Compose"]
+    A["Windows 11 + Docker Desktop / WSL2"] --> B["Docker Compose"]
     B --> C["Apache Airflow DAG"]
     C --> D["Machine API Container"]
     D --> E["Raw JSON Landing<br/>Microsoft OneLake"]
@@ -174,7 +177,7 @@ Daily pipeline completion email is documented in `ALERTING_MONITORING.md`, but n
 - Semantic model
 - Azure Entra service principal
 - Azure ARM API for Fabric F2 pause/resume
-- Docker Compose runtime (local Mac; deployable to any Linux host)
+- Windows Task Scheduler + Docker Desktop runtime (deployable to Linux hosts)
 
 ## Screenshots
 
@@ -190,11 +193,12 @@ Daily pipeline completion email is documented in `ALERTING_MONITORING.md`, but n
 
 ```text
 dags/qr_printing_machine_api_dag.py       Airflow orchestration DAG
-machine_api/app.py                        Simulated QR printing machine API
+machine-api/app.py                        Simulated QR printing machine API
 fabric/notebooks/qr_printing_transform.py Fabric transformation notebook source
 fabric/notebooks/semantic_model_setup.py  Semantic model setup notebook source
 docker-compose.yaml                       Airflow + machine-api stack (any Docker host)
 .env.example                              Required environment variable template
+scripts/docker-auto/*.ps1                 Windows start/safe-stop automation
 ```
 
 ## Further Documentation
@@ -206,8 +210,7 @@ docker-compose.yaml                       Airflow + machine-api stack (any Docke
 
 ## Current Status
 
-The pipeline is validated end-to-end - Airflow through Fabric transformation and
-Power BI semantic model refresh - most recently on 2026-09-01 on a local Mac
-Docker Compose stack. Code and infra definitions are complete. The daily
-schedule is active while the Mac + Docker are running; see `PROJECT_STATUS.md`
-for always-on runtime options.
+The pipeline is validated end-to-end on Windows - Airflow through Fabric
+transformation and Power BI semantic model refresh - most recently on 2026-09-04.
+The daily Windows tasks are installed for 06:40 start and 08:00 safe stop;
+`PROJECT_STATUS.md` is the operating source of truth.
