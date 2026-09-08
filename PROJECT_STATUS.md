@@ -4,7 +4,7 @@ Last updated: 2026-09-05 Bangkok
 
 ## Shared Retail integration (2026-09-05)
 
-The existing Airflow now also hosts `retail_dbt_daily` at 07:30 Bangkok, ingesting the previous day's synthetic retail data. See the [Retail blueprint](../DBT/my_dbt_project/DeploymentAndLogic.md) for its model, progress and recovery notes.
+The existing Airflow now also hosts `retail_dbt_daily` at 07:30 Bangkok, ingesting the previous day's synthetic retail data. See the [Retail blueprint](dbt/retail/DeploymentAndLogic.md) for its model, progress and recovery notes.
 
 - No additional persistent services: only the existing worker uses extended image `local/airflow-retail:3.2.2`, with dbt isolated in `/opt/retail-venv`.
 - All three DAGs use one-slot `shared_pipeline`; worker concurrency is 1. World Bank remains paused. IoT scheduling/business logic is unchanged.

@@ -1,0 +1,195 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: Customer dimension table with one row per customer and summarized order history metrics.
+    columns:
+      - name: customer_id
+        description: Unique identifier for each customer.
+        tests:
+          - not_null
+          - unique
+      - name: customer_name
+        description: Standardized customer name.
+      - name: email
+        description: Customer email address.
+      - name: city
+        description: Customer city.
+      - name: signup_date
+        description: Date when the customer signed up.
+      - name: first_order_date
+        description: Date of the customer's first order.
+      - name: latest_order_date
+        description: Date of the customer's most recent order.
+      - name: total_orders
+        description: Number of distinct orders placed by the customer.
+      - name: lifetime_order_value
+        description: Total order amount across all orders placed by the customer.
+
+  - name: dim_stores
+    description: Store dimension table with one row per store and summarized order history metrics.
+    columns:
+      - name: store_id
+        description: Unique identifier for each store.
+        tests:
+          - not_null
+          - unique
+      - name: store_name
+        description: Standardized store name.
+      - name: city
+        description: City where the store is located.
+      - name: region
+        description: Region where the store is located.
+      - name: opened_date
+        description: Date when the store opened.
+      - name: store_type
+        description: Type of store such as flagship or branch.
+      - name: total_orders
+        description: Number of distinct orders placed through the store.
+      - name: total_order_value
+        description: Total order amount attributed to the store.
+      - name: first_order_date
+        description: Date of the first recorded order for the store.
+      - name: latest_order_date
+        description: Date of the most recent recorded order for the store.
+
+  - name: dim_products
+    description: Product dimension table with one row per product and summarized sales metrics.
+    columns:
+      - name: product_id
+        description: Unique identifier for each product.
+        tests:
+          - not_null
+          - unique
+      - name: product_name
+        description: Standardized product name.
+      - name: category
+        description: Product category.
+      - name: brand
+        description: Product brand.
+      - name: base_price
+        description: Base unit price of the product.
+      - name: total_quantity_sold
+        description: Total quantity sold across all order lines.
+      - name: total_sales_amount
+        description: Total sales amount across all order lines.
+      - name: first_order_date
+        description: Date of the first recorded sale for the product.
+      - name: latest_order_date
+        description: Date of the most recent recorded sale for the product.
+
+  - name: fct_orders
+    description: Order fact table with one row per order, enriched with customer, store, item, and payment attributes.
+    columns:
+      - name: order_id
+        description: Unique identifier for each order.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Identifier of the customer who placed the order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: store_id
+        description: Identifier of the store where the order was placed.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_stores')
+                field: store_id
+      - name: customer_name
+        description: Standardized customer name associated with the order.
+      - name: customer_city
+        description: Customer city associated with the order.
+      - name: store_name
+        description: Standardized store name associated with the order.
+      - name: store_city
+        description: Store city associated with the order.
+      - name: store_region
+        description: Store region associated with the order.
+      - name: store_type
+        description: Store type associated with the order.
+      - name: order_date
+        description: Date when the order was placed.
+      - name: order_amount
+        description: Total monetary amount of the order.
+      - name: order_status
+        description: Status of the order after standardization.
+      - name: total_quantity
+        description: Total quantity of units across all order lines in the order.
+      - name: distinct_products
+        description: Number of distinct products included in the order.
+      - name: item_subtotal
+        description: Sum of order line amounts across all items in the order.
+      - name: total_paid_amount
+        description: Total amount successfully paid for the order.
+      - name: successful_payment_count
+        description: Number of successful payment records linked to the order.
+      - name: latest_payment_date
+        description: Most recent payment date linked to the order.
+      - name: payment_state
+        description: Derived payment state based on the paid amount compared with the order amount.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['fully_paid', 'partially_paid', 'unpaid']
+
+  - name: fct_order_items
+    description: Retail order-line fact table with one row per product line in an order.
+    columns:
+      - name: order_line_id
+        description: Unique identifier for each order line.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Identifier of the order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: customer_id
+        description: Identifier of the customer on the order line.
+      - name: store_id
+        description: Identifier of the store on the order line.
+      - name: product_id
+        description: Identifier of the product on the order line.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: order_date
+        description: Date when the order was placed.
+      - name: order_status
+        description: Standardized order status on the order line.
+      - name: customer_name
+        description: Customer name associated with the order line.
+      - name: customer_city
+        description: Customer city associated with the order line.
+      - name: store_name
+        description: Store name associated with the order line.
+      - name: store_city
+        description: Store city associated with the order line.
+      - name: store_region
+        description: Store region associated with the order line.
+      - name: product_name
+        description: Product name associated with the order line.
+      - name: category
+        description: Product category associated with the order line.
+      - name: brand
+        description: Product brand associated with the order line.
+      - name: quantity
+        description: Number of units sold on the order line.
+      - name: unit_price
+        description: Unit price of the order line.
+      - name: line_amount
+        description: Extended amount for the order line.

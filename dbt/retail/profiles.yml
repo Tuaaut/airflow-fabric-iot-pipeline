@@ -1,0 +1,10 @@
+my_dbt_project:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('RETAIL_DB_PATH', 'data/demo.duckdb') }}"
+      threads: 1
+      settings:
+        threads: 1
+        memory_limit: '512MB'

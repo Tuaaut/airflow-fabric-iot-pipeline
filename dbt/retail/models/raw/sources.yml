@@ -1,0 +1,12 @@
+version: 2
+sources:
+  - name: retail_landing
+    schema: landing
+    description: Deterministic daily batches loaded transactionally by pipeline/retail.py.
+    tables:
+      - name: customers
+      - name: stores
+      - name: products
+      - name: orders
+      - name: order_items
+      - name: payments

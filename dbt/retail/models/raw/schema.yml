@@ -1,0 +1,142 @@
+version: 2
+
+models:
+  - name: raw_customers
+    description: Generated raw customer dataset used as the starting point of the retail demo pipeline.
+    columns:
+      - name: customer_id
+        description: Unique identifier for each customer.
+        tests:
+          - not_null
+          - unique
+      - name: customer_name
+        description: Original customer name before staging transformations.
+      - name: email
+        description: Original customer email value.
+      - name: signup_date
+        description: Customer signup date in the raw dataset.
+      - name: city
+        description: Original customer city value.
+
+  - name: raw_stores
+    description: Generated raw store dataset used as the starting point for store-related transformations.
+    columns:
+      - name: store_id
+        description: Unique identifier for each store.
+        tests:
+          - not_null
+          - unique
+      - name: store_name
+        description: Original store name before staging transformations.
+      - name: city
+        description: Original store city value.
+      - name: region
+        description: Original store region value.
+      - name: opened_date
+        description: Date when the store was opened.
+      - name: store_type
+        description: Original store type value.
+
+  - name: raw_products
+    description: Generated raw product dataset for retail product master data.
+    columns:
+      - name: product_id
+        description: Unique identifier for each product.
+        tests:
+          - not_null
+          - unique
+      - name: product_name
+        description: Raw product name.
+      - name: category
+        description: Raw product category.
+      - name: brand
+        description: Raw product brand.
+      - name: base_price
+        description: Raw base unit price of the product.
+
+  - name: raw_orders
+    description: Generated raw order dataset with one row per order.
+    columns:
+      - name: order_id
+        description: Unique identifier for each order.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Identifier of the customer who placed the order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('raw_customers')
+                field: customer_id
+      - name: store_id
+        description: Identifier of the store where the order was placed.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('raw_stores')
+                field: store_id
+      - name: order_date
+        description: Date when the order was placed.
+      - name: order_amount
+        description: Order total aligned to the sum of its item lines.
+      - name: order_status
+        description: Raw order status value.
+
+  - name: raw_order_items
+    description: Generated raw order line dataset with one row per product line in an order.
+    columns:
+      - name: order_line_id
+        description: Unique identifier for each order line.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Identifier of the order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('raw_orders')
+                field: order_id
+      - name: product_id
+        description: Identifier of the product on the order line.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('raw_products')
+                field: product_id
+      - name: quantity
+        description: Number of units sold on the order line.
+      - name: unit_price
+        description: Unit price used for the order line.
+      - name: line_amount
+        description: Extended amount for the order line.
+
+  - name: raw_payments
+    description: Generated raw payment dataset used as the starting point of payment transformations.
+    columns:
+      - name: payment_id
+        description: Unique identifier for each payment.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Identifier of the order associated with the payment.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('raw_orders')
+                field: order_id
+      - name: payment_date
+        description: Date when the payment was recorded.
+      - name: payment_amount
+        description: Raw payment amount before staging transformations.
+      - name: payment_method
+        description: Original payment method value.
+      - name: payment_status
+        description: Original payment status value.

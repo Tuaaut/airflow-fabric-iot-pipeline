@@ -51,9 +51,6 @@ x-airflow-common:
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.2.2}
   # build: .
-  dns:
-    - 1.1.1.1
-    - 8.8.8.8
   env_file:
     - ${ENV_FILE_PATH:-.env}
   environment:
@@ -204,6 +201,18 @@ services:
 
   airflow-worker:
     <<: *airflow-common
+    image: local/airflow-retail:3.2.2
+    build:
+      context: ${AIRFLOW_PROJ_DIR:-.}/dbt/retail
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+      - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+      - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+      - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+      - ${AIRFLOW_PROJ_DIR:-.}/dbt/retail:/opt/retail/project:ro
+      - retail-db-volume:/opt/retail/data
+      - ${AIRFLOW_PROJ_DIR:-.}/dbt/retail/exports:/opt/retail/exports
     command: celery worker
     healthcheck:
       # yamllint disable rule:line-length
@@ -214,6 +223,12 @@ services:
       start_period: 30s
     environment:
       <<: *airflow-common-env
+      AIRFLOW__CELERY__WORKER_CONCURRENCY: '1'
+      RETAIL_DB_PATH: /opt/retail/data/demo.duckdb
+      RETAIL_EXPORT_DIR: /opt/retail/exports
+      DBT_TARGET_PATH: /opt/retail/data/dbt_target
+      DBT_LOG_PATH: /opt/retail/data/dbt_logs
+      DBT_SEND_ANONYMOUS_USAGE_STATS: 'false'
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
@@ -371,3 +386,4 @@ services:
 
 volumes:
   postgres-db-volume:
+  retail-db-volume:
