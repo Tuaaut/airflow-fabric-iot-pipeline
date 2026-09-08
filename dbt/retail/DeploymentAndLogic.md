@@ -75,8 +75,11 @@ Use Airflow UI to trigger batches. Keep Docker running during processing. Do not
 
 ## Backup and recovery
 
-Full pre-change backup: [backup folder](../backups/my_dbt_project_20260905_before_airflow/my_dbt_project).
-Original DuckDB SHA256: `04C66358B51396972C0D55C09452F60EA43ADA556CECA61E7A91C48FFB8E9A66`, verified identical in backup.
+The pre-change backup folder (`DBT/backups/my_dbt_project_20260905_before_airflow`)
+has been removed now that the Retail integration is committed to Git; the
+repository history is the recovery point. Original DuckDB SHA256:
+`04C66358B51396972C0D55C09452F60EA43ADA556CECA61E7A91C48FFB8E9A66`, which was
+verified identical in that backup before deletion.
 
 Existing shared-repository uncommitted user changes were preserved. Retail's legacy database is retained. To revert the worker, restore its original inherited image/volume configuration only after stopping Retail runs; preserve the volume. Reverting Retail integration also requires restoring the old Windows gates and DAG pool defaults, not merely deleting the DAG file.
 
